@@ -1,5 +1,6 @@
-import esbuild from 'esbuild';
 import { URL } from 'url';
+
+import esbuild from 'esbuild';
 
 /**
  * @param {string} contents

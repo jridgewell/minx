@@ -8,8 +8,9 @@
   },
   "scripts": {
     "lint": "prettier --write src bin test",
-    "test": "minx build",
-    "serve": "minx serve"
+    "test": "npm run build",
+    "build": "minx build --in docs --out docs",
+    "serve": "minx serve --in docs"
   },
   "repository": {
     "type": "git",
