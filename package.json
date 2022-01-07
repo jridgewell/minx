@@ -42,6 +42,8 @@
   "dependencies": {
     "commander": "8.3.0",
     "esbuild": "0.14.10",
-    "fast-glob": "3.2.7"
+    "fast-glob": "3.2.7",
+    "preact": "10.6.4",
+    "preact-render-to-string": "5.1.19"
   }
 }

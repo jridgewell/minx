@@ -2,6 +2,8 @@ import { readFileSync } from 'fs';
 import vm from 'vm';
 import { resolve, dirname } from 'path';
 
+import * as React from 'preact';
+
 import { transformContentsSync } from './esbuild.mjs';
 
 /**
@@ -22,6 +24,7 @@ function load(specifier, importer) {
   const contents = readFileSync(file, 'utf8');
   const transformed = transformContentsSync(contents, file);
   const mod = new /** @type {any} */ (vm).SourceTextModule(transformed, {
+    context: vm.createContext({ React }),
     identifier: file,
     importModuleDynamically,
   });

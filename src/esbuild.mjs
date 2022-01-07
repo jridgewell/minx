@@ -1,5 +1,3 @@
-import { URL } from 'url';
-
 import esbuild from 'esbuild';
 
 /**
@@ -14,7 +12,6 @@ export function transformContentsSync(contents, file) {
       sourcefile: file,
       loader: 'jsx',
     },
-    inject: [new URL('./react.mjs', import.meta.url).pathname],
     bundle: false,
     write: false,
     sourcemap: 'inline',

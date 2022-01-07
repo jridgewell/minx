@@ -5,7 +5,7 @@ import fg from 'fast-glob';
 
 import { render } from './react-dom.mjs';
 import { loadModule } from './load-module.mjs';
-import {cleanup} from './cleanup.mjs';
+import { cleanup } from './cleanup.mjs';
 
 /**
  * @param {string[]} files

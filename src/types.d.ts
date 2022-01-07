@@ -1,3 +1,5 @@
+export type VNode = import('preact').VNode;
+
 export type ModuleLoader = (
   specifier: string,
   importer: SourceTextModule,
@@ -15,7 +17,7 @@ export class SourceTextModule {
     | 'errored';
   identifier: string;
   namespace: {
-    default(): JSX | Promise<JSX>;
+    default(): VNode | Promise<VNode>;
   };
 }
 
@@ -33,9 +35,4 @@ export interface RenderRecord {
   dir: string;
   filename: string;
   render: string;
-}
-
-export interface JSX {
-  type: string | (() => JSX);
-  props: unknown;
 }
