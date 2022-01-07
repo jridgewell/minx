@@ -82,7 +82,7 @@ async function writeRender({ render, dir, filename }, outDir) {
  */
 export async function build({ in: inDir, out: outDir, glob }) {
   const files = await fg(glob, { cwd: inDir });
-  const clean = cleanup(outDir);
+  const clean = cleanup(outDir, files);
 
   const modules = await importFiles(
     files,

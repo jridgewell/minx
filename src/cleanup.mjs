@@ -1,5 +1,5 @@
 import { unlink, rmdir, opendir } from 'fs/promises';
-import { dirname } from 'path';
+import { dirname, join, extname } from 'path';
 
 import fg from 'fast-glob';
 
@@ -14,11 +14,34 @@ async function isEmpty(dir) {
 }
 
 /**
+ * @param {string} file
+ * @return {string}
+ */
+function removeExtension(file) {
+  const ext = extname(file);
+  return file.slice(0, -ext.length);
+}
+
+/**
  * @param {string} outDir
+ * @param {string[]} keeps
+ * @return {Promise<string[]>}
+ */
+async function lookupExcluding(outDir, keeps) {
+  const files = await fg('**/*.html', { cwd: outDir });
+  const set = new Set(keeps.map(removeExtension));
+  return files
+    .filter((f) => !set.has(removeExtension(f)))
+    .map((f) => join(process.cwd(), outDir, f));
+}
+
+/**
+ * @param {string} outDir
+ * @param {string[]} keeps
  * @return {Promise<unknown[]>}
  */
-export async function cleanup(outDir) {
-  const files = await fg('**/*.html', { cwd: outDir, absolute: true });
+export async function cleanup(outDir, keeps) {
+  const files = await lookupExcluding(outDir, keeps);
   const deletes = files.map((f) => unlink(f));
   await Promise.all(deletes);
 
