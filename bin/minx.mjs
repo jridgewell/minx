@@ -1,4 +1,4 @@
-#!/usr/bin/env node --no-warnings --experimental-vm-modules
+#!/usr/bin/env -S node --no-warnings --experimental-vm-modules
 
 import { Command } from 'commander';
 import { readFileSync } from 'fs';
