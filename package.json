@@ -1,0 +1,46 @@
+{
+  "name": "@jridgewell/minx",
+  "version": "0.0.1",
+  "description": "A completely static site generator powered by JS+JSX",
+  "type": "module",
+  "bin": {
+    "minx": "bin/minx.mjs"
+  },
+  "scripts": {
+    "lint": "prettier --write src bin test",
+    "test": "minx build",
+    "serve": "minx serve"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jridgewell/minx.git"
+  },
+  "keywords": [
+    "static",
+    "site",
+    "generator",
+    "ssg",
+    "jsx"
+  ],
+  "author": "Justin Ridgewell <justin@ridgewell.name>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/jridgewell/minx/issues"
+  },
+  "engines": {
+    "node": ">= 10.0.0"
+  },
+  "homepage": "https://github.com/jridgewell/minx#readme",
+  "devDependencies": {
+    "@types/commander": "2.12.2",
+    "@types/node": "17.0.8",
+    "@types/react": "17.0.38",
+    "prettier": "2.4.0",
+    "typescript": "4.5.4"
+  },
+  "dependencies": {
+    "commander": "8.3.0",
+    "esbuild": "0.14.10",
+    "fast-glob": "3.2.7"
+  }
+}

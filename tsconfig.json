@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "checkJs": true,
+    "moduleResolution": "node",
+    "target": "esnext",
+    "module":"esnext",
+    "lib": ["esnext", "node"],
+    "strict": true,
+    "sourceMap": true,
+    "inlineSources": true,
+    "declaration": true,
+    "allowSyntheticDefaultImports": true,
+    "declarationDir": "types",
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+  },
+  "exclude": ["types"],
+  "include": ["bin", "src", "test"]
+}
