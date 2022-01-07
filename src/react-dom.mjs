@@ -33,5 +33,5 @@ function renderInternal({ type, props }, indent) {
 }
 
 export function render(jsx) {
-  return renderInternal(jsx, 0);
+  return '<!doctype html>' + renderInternal(jsx, 0);
 }
