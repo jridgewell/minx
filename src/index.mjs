@@ -5,6 +5,7 @@ import fg from 'fast-glob';
 
 import { render } from './react-dom.mjs';
 import { loadModule } from './load-module.mjs';
+import {cleanup} from './cleanup.mjs';
 
 /**
  * @param {string[]} files
@@ -81,6 +82,7 @@ async function writeRender({ render, dir, filename }, outDir) {
  */
 export async function build({ in: inDir, out: outDir, glob }) {
   const files = await fg(glob, { cwd: inDir });
+  const clean = cleanup(outDir);
 
   const modules = await importFiles(
     files,
@@ -88,5 +90,6 @@ export async function build({ in: inDir, out: outDir, glob }) {
   );
 
   const renders = await renderModules(modules);
+  await clean;
   await writeRenders(renders, outDir);
 }
