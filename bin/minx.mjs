@@ -20,7 +20,7 @@ serve.action(() => {
 
 const buildCommand = program.command('build');
 buildCommand.option('-i, --in <dir>', 'input directory to build', '.');
-buildCommand.option('-o, --out <dir>', 'output directory to build', '_site');
+buildCommand.option('-o, --out <dir>', 'output directory to build', 'docs');
 buildCommand.option(
   '-g, --glob <pattern>',
   'glob pattern to search for files to transform',
