@@ -1,63 +1,51 @@
 import vm from 'vm';
-import { join, resolve, dirname } from 'path';
+import { join, dirname } from 'path';
 import { watch } from 'fs/promises';
 
-import * as React from 'preact';
+import * as React from 'preact/compat';
 
 import { transformSync } from './esbuild.mjs';
 
+const context = vm.createContext({ React, console });
+
 /**
- * @type {Map<string, import('./types').SourceTextModule>}
+ * @type {Map<string, import('./types').CachedModuleRecord>}
  */
 const moduleCache = new Map();
-
-/**
- * @type {WeakMap<import('./types').SourceTextModule, Set<string>>}
- */
-const importers = new WeakMap();
-
-/**
- * @type {WeakMap<import('./types').SourceTextModule, AbortController>}
- */
-const watchers = new WeakMap();
 
 let _hotReload = false;
 
 /**
  * @param {import('./types').SourceTextModule} mod
+ * @param {AbortController} abort
  */
-async function watchForChanges(mod) {
-  if (!_hotReload) return;
-
+async function watchForChanges(mod, abort) {
   const { identifier } = mod;
-  const abort = new AbortController();
-  watchers.set(mod, abort);
   const watcher = watch(identifier, {
     persistent: false,
     signal: abort.signal,
   });
 
   try {
-    for await (const _ of watcher) invalidate(identifier);
+    for await (const _ of watcher) invalidate(identifier, false);
   } catch {}
 }
 
 /**
  * @param {string} identifier
+ * @param {boolean} depChange
  */
-function invalidate(identifier) {
-  const mod = moduleCache.get(identifier);
-  if (!mod) return;
+function invalidate(identifier, depChange) {
+  const cached = moduleCache.get(identifier);
+  if (!cached) return;
 
-  const watcher = /** @type {AbortController} */ (watchers.get(mod));
-  const imports = /** @type {Set<string>} */ (importers.get(mod));
+  if (depChange) console.log(`\bpurging importer "${identifier}"`);
+  else console.log(`detected change in "${identifier}"`);
 
+  const {abort, importers} = cached;
   moduleCache.delete(identifier);
-  watchers.delete(mod);
-  importers.delete(mod);
-
-  watcher.abort();
-  for (const importer of imports) invalidate(importer);
+  abort.abort();
+  for (const importer of importers) invalidate(importer, true);
 }
 
 /**
@@ -67,22 +55,29 @@ function invalidate(identifier) {
  */
 function load(specifier, importer) {
   const { identifier } = importer;
-  const file = resolve(dirname(identifier), specifier);
+  const file = join(dirname(identifier), specifier);
+
   let cached = moduleCache.get(file);
   if (cached) {
-    /** @type {Set<string>} */ (importers.get(cached)).add(identifier);
-    return cached;
+    if (_hotReload) cached.importers.add(identifier);
+    return cached.mod;
   }
 
+  console.log('\t', `compiling "${file}"`);
   const transformed = transformSync(file);
   const mod = new /** @type {any} */ (vm).SourceTextModule(transformed, {
-    context: vm.createContext({ React }),
+    context,
     identifier: file,
     importModuleDynamically,
   });
-  moduleCache.set(file, mod);
-  importers.set(mod, new Set([identifier]));
-  watchForChanges(mod);
+  const importers = new Set([identifier]);
+  const abort = new AbortController();
+
+  moduleCache.set(file, { mod, importers, abort, });
+
+  if (_hotReload) watchForChanges(mod, abort);
+
+
   return mod;
 }
 

@@ -25,14 +25,22 @@ export interface Importer {
   identifier: string;
 }
 
+export interface CachedModuleRecord {
+  mod: SourceTextModule;
+  importers: Set<string>;
+  abort: AbortController;
+}
+
 export interface ModuleRecord {
-  dir: string;
-  filename: string;
+  file: string;
   mod: SourceTextModule;
 }
 
 export interface RenderRecord {
-  dir: string;
-  filename: string;
+  file: string;
   render: string;
 }
+
+export type Merge<A, B> = {
+  [K in keyof A]: K extends keyof B ? B[K] : A[K];
+} & B;
