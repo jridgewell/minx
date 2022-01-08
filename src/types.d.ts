@@ -27,7 +27,7 @@ export interface Importer {
 
 export interface CachedModuleRecord {
   mod: SourceTextModule;
-  importers: Set<string>;
+  importers: Set<Importer>;
   abort: AbortController;
 }
 

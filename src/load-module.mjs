@@ -1,5 +1,6 @@
 import vm from 'vm';
-import { join, dirname } from 'path';
+import { join, relative, dirname } from 'path';
+import { existsSync } from 'fs';
 import { watch } from 'fs/promises';
 
 import * as React from 'preact/compat';
@@ -8,15 +9,25 @@ import { transformSync } from './esbuild.mjs';
 
 const context = vm.createContext({ React, console });
 
+/** @type {import('./types').CachedModuleRecord} */
+let CachedModuleRecord;
+/** @type {import('./types').SourceTextModule} */
+let SourceTextModule;
+/** @type {import('./types').Importer} */
+let Importer;
+
 /**
- * @type {Map<string, import('./types').CachedModuleRecord>}
+ * @type {Map<string, CachedModuleRecord>}
  */
 const moduleCache = new Map();
+
+/** @type {Importer} */
+let root;
 
 let _hotReload = false;
 
 /**
- * @param {import('./types').SourceTextModule} mod
+ * @param {SourceTextModule} mod
  * @param {AbortController} abort
  */
 async function watchForChanges(mod, abort) {
@@ -27,31 +38,52 @@ async function watchForChanges(mod, abort) {
   });
 
   try {
-    for await (const _ of watcher) invalidate(identifier, false);
+    for await (const _ of watcher) {
+      /** @type {string[]} */
+      const reloads = [];
+      invalidate(identifier, true, reloads);
+      console.log(reloads);
+      reloads.forEach(reload);
+    }
   } catch {}
 }
 
 /**
  * @param {string} identifier
- * @param {boolean} depChange
  */
-function invalidate(identifier, depChange) {
+async function reload(identifier) {
+  await new Promise(r => setTimeout(r, 25));
+  if (!existsSync(identifier)) return;
+  const specifier = relative(dirname(root.identifier), identifier);
+  importModuleDynamically(specifier, root);
+}
+
+/**
+ * @param {string} identifier
+ * @param {boolean} modified
+ * @param {string[]} reloads
+ */
+function invalidate(identifier, modified, reloads) {
   const cached = moduleCache.get(identifier);
   if (!cached) return;
 
-  if (depChange) console.log(`\bpurging importer "${identifier}"`);
-  else console.log(`detected change in "${identifier}"`);
+  if (modified) console.log(`detected change in "${identifier}"`);
+  else console.log(`\bpurging importer "${identifier}"`);
 
   const { abort, importers } = cached;
   moduleCache.delete(identifier);
   abort.abort();
-  for (const importer of importers) invalidate(importer, true);
+
+  for (const importer of importers) {
+    if (root === importer) reloads.push(identifier);
+    invalidate(importer.identifier, false, reloads);
+  }
 }
 
 /**
  * @param {string} specifier
- * @param {import('./types').Importer} importer
- * @return {import('./types').SourceTextModule}
+ * @param {Importer} importer
+ * @return {SourceTextModule}
  */
 function load(specifier, importer) {
   const { identifier } = importer;
@@ -59,18 +91,18 @@ function load(specifier, importer) {
 
   let cached = moduleCache.get(file);
   if (cached) {
-    if (_hotReload) cached.importers.add(identifier);
+    if (_hotReload) cached.importers.add(importer);
     return cached.mod;
   }
 
-  console.log('\t', `compiling "${file}"`);
+  console.log('\t', `compiling "${file}" from "${identifier}"`);
   const transformed = transformSync(file);
   const mod = new /** @type {any} */ (vm).SourceTextModule(transformed, {
     context,
     identifier: file,
     importModuleDynamically,
   });
-  const importers = new Set([identifier]);
+  const importers = new Set([importer]);
   const abort = new AbortController();
 
   moduleCache.set(file, { mod, importers, abort });
@@ -82,8 +114,8 @@ function load(specifier, importer) {
 
 /**
  * @param {string} specifier
- * @param {import('./types').Importer} importer
- * @return {Promise<import('./types').SourceTextModule>}
+ * @param {Importer} importer
+ * @return {Promise<SourceTextModule>}
  */
 async function importModuleDynamically(specifier, importer) {
   const mod = load(specifier, importer);
@@ -99,10 +131,9 @@ export function hotReload() {
 /**
  * @param {string} specifier
  * @param {string} cwd
- * @return {Promise<import('./types').SourceTextModule>}
+ * @return {Promise<SourceTextModule>}
  */
 export function loadModule(specifier, cwd) {
-  return importModuleDynamically(specifier, {
-    identifier: join(cwd, '[minx]'),
-  });
+  root ||= { identifier: join(cwd, '[minx]') };
+  return importModuleDynamically(specifier, root);
 }
