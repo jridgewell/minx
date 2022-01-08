@@ -10,6 +10,7 @@ import fg from 'fast-glob';
 async function isEmpty(dir) {
   const d = await opendir(dir, { bufferSize: 1 });
   const next = await d.read();
+  d.close();
   return !next;
 }
 

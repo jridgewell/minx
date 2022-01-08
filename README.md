@@ -12,7 +12,7 @@ $ npm install -g @jridgewell/minx
 ## Usage
 
 ```bash
-$ minx init
-$ minx serve
-$ minx build
+$ minx build [--in <dir>] [--out <dir>]
+
+$ minx serve [--in <dir>] [--port <port>]
 ```

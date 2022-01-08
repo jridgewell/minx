@@ -1,17 +1,15 @@
+import { extname } from 'path';
+
 import esbuild from 'esbuild';
 
 /**
- * @param {string} contents
  * @param {string} file
  * @return {string}
  */
-export function transformContentsSync(contents, file) {
+export function transformSync(file) {
   const result = esbuild.buildSync({
-    stdin: {
-      contents,
-      sourcefile: file,
-      loader: 'jsx',
-    },
+    entryPoints: [file],
+    loader: { [extname(file)]: 'tsx' },
     bundle: false,
     write: false,
     sourcemap: 'inline',
