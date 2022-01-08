@@ -1,101 +1,108 @@
 import { writeFile, copyFile } from 'fs/promises';
-import { dirname, basename, extname, join } from 'path';
+import { join } from 'path';
 
 import fg from 'fast-glob';
 
 import { render } from './react-dom.mjs';
 import { loadModule } from './load-module.mjs';
-import { toArray, map } from './async-iterable-concurrent.mjs';
+import {
+  forEach,
+  interleave,
+  chain,
+  map,
+} from './async-iterable-concurrent.mjs';
 import { ensureDir, replaceExt } from './disk.mjs';
 
+/** @type {import('./types').FileData} */
+let FileData;
+/** @type {import('./types').ModuleRecord} */
+let ModuleRecord;
+/** @type {import('./types').RenderRecord} */
+let RenderRecord;
+
 /**
- * @param {string} inDir
- * @param {string} outDir
- * @return {(file: string) => Promise<import('./types').ModuleRecord>}
+ * @param {Parameters<fg>[0]} glob
+ * @param {Parameters<fg>[1]} opts
  */
-function importFiles(inDir, outDir) {
-  return (f) => importFile(f, inDir, outDir);
+function streamGlob(glob, opts) {
+  return /** @type {AsyncIterable<string>} */ (fg.stream(glob, opts));
 }
 
 /**
- * @param {string} file
  * @param {string} inDir
  * @param {string} outDir
- * @return {Promise<import('./types').ModuleRecord>}
+ * @return {(data: string) => FileData}
  */
-async function importFile(file, inDir, outDir) {
-  console.log(
-    `building ${join(inDir, file)} -> ${replaceExt(
-      join(outDir, file),
-      '.html',
-    )}`,
-  );
+function fileData(inDir, outDir) {
+  return (file) => {
+    const src = join(inDir, file);
+    const dest = replaceExt(join(outDir, file), '.html');
+    console.log(`built ${src} -> ${dest}`);
+    return { file, cwd: inDir, src, dest };
+  };
+}
 
-  return {
-    file,
-    mod: await loadModule(file, inDir),
+/**
+ * @return {(data: FileData) => Promise<ModuleRecord>}
+ */
+function importFiles() {
+  return async (data) => {
+    return {
+      data,
+      mod: await loadModule(data.file, data.cwd),
+    };
   };
 }
 
 /**
  * @param {boolean | string} pretty
- * @return {(mod: import('./types').ModuleRecord) => Promise<import('./types').RenderRecord>}
+ * @return {(mod: ModuleRecord) => Promise<RenderRecord>}
  */
 function renderModules(pretty) {
-  return (m) => renderModule(m, pretty);
-}
-
-/**
- * @param {import('./types').ModuleRecord} module
- * @param {boolean | string} pretty
- * @return {Promise<import('./types').RenderRecord>}
- */
-async function renderModule({ file, mod }, pretty) {
-  return {
-    file,
-    render: render(await mod.namespace.default(), pretty),
+  return async ({ data, mod }) => {
+    return {
+      data,
+      render: render(await mod.namespace.default(), pretty),
+    };
   };
 }
 
 /**
- * @param {string} outDir
- * @return {(render: import('./types').RenderRecord) => Promise<unknown>}
+ * @return {(render: RenderRecord) => Promise<void>}
  */
-function writeRenders(outDir) {
-  return (r) => writeRender(r, outDir);
+function writeRenders() {
+  return async ({ render, data }) => {
+    const {dest} = data;
+    await ensureDir(dest);
+    return writeFile(dest, render);
+  };
 }
 
 /**
- * @param {import('./types').RenderRecord} renderRecord
+ * @param {string[]} cwds
  * @param {string} outDir
- * @return {Promise<unknown>}
+ * @return {AsyncIterable<void>}
  */
-async function writeRender({ render, file }, outDir) {
-  const outputFile =
-    join(outDir, dirname(file), basename(file, extname(file))) + '.html';
-  await ensureDir(outputFile);
-  return writeFile(outputFile, render);
-}
-
-/**
- * @param {string} cwd
- * @param {string} outDir
- * @return {Promise<unknown[]>}
- */
-async function copyPublicFiles(cwd, outDir) {
-  const stream = fg.stream('**', { cwd });
-  const copies = [];
-  for await (const file of stream) {
-    copies.push(copyPublicFile(/** @type {string} */ (file), cwd, outDir));
-  }
-  return Promise.all(copies);
+function copyAllPublicFiles(cwds, outDir) {
+  const files = chain(
+    cwds.map((cwd) => {
+      const files = streamGlob('**', { cwd });
+      return map(files, (file) => {
+        return { file, cwd };
+      });
+    }),
+  );
+  const copies = map(files, ({ file, cwd }) => {
+    return copyPublicFile(file, cwd, outDir);
+  });
+  return copies;
 }
 
 /**
  * @param {string} file
  * @param {string} cwd
  * @param {string} outDir
- * @return {Promise<unknown>}
+ * @return {Promise<void>}
  */
 async function copyPublicFile(file, cwd, outDir) {
   const src = join(cwd, file);
@@ -122,18 +129,12 @@ export async function build({
   pretty,
   public: pubs,
 }) {
-  const files = /** @type {AsyncIterable<string>} */ (
-    fg.stream(glob, { cwd: inDir, ignore })
-  );
-  const modules = map(files, importFiles(inDir, outDir));
+  const stream = streamGlob(glob, { cwd: inDir, ignore });
+  const files = map(stream, fileData(inDir, outDir));
+  const modules = map(files, importFiles());
   const renders = map(modules, renderModules(pretty));
-  const writes = map(renders, writeRenders(outDir));
+  const rendering = map(renders, writeRenders());
 
-  const copies = [];
-  if (pubs) {
-    for (const p of pubs) copies.push(copyPublicFiles(p, outDir));
-  }
-
-  await toArray(writes, 100);
-  await Promise.all(copies);
+  const copying = copyAllPublicFiles(pubs || [], outDir);
+  await forEach(interleave([rendering, copying]), 100);
 }

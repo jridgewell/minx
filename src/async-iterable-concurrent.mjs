@@ -4,11 +4,11 @@
  */
 class AsyncIt {
   /**
-   * @param {AsyncIterable<T>} iterator
-   * @param {(v: T) => Promise<R>} fn
+   * @param {AsyncIterable<T>} iterable
+   * @param {(v: T) => R|Promise<R>} fn
    */
-  constructor(iterator, fn) {
-    this._it = iterator[Symbol.asyncIterator]();
+  constructor(iterable, fn) {
+    this._it = iterable[Symbol.asyncIterator]();
     this._fn = fn;
   }
 
@@ -29,42 +29,124 @@ class AsyncIt {
 }
 
 /**
- * @param {AsyncIterable<T>} iterator
- * @param {(v: T) => Promise<R>} fn
+ * @template T
+ */
+class InterleavedIt {
+  /**
+   * @param {AsyncIterable<T>[]} iterables
+   */
+  constructor(iterables) {
+    /** @type {Array<AsyncIterator<T>|null>} */
+    this._its = iterables.map((it) => it[Symbol.asyncIterator]());
+    this._index = 0;
+    this._done = false;
+  }
+
+  [Symbol.asyncIterator]() {
+    return this;
+  }
+
+  /**
+   * @return {Promise<IteratorResult<T>>}
+   */
+  async next() {
+    let i = -1;
+    try {
+      if (!this._done) i = this._nextIndex();
+      if (i === -1) {
+        this._done = true;
+        return { value: undefined, done: true };
+      }
+
+      const its = this._its;
+      const it = /** @type {AsyncIterator<T>} */ (its[i]);
+      const result = await it.next();
+      if (result.done) its[i] = null;
+
+      return this.next();
+    } catch (e) {
+      this._done = true;
+      throw e;
+    }
+  }
+
+  /**
+   * @return number
+   */
+  _nextIndex() {
+    let { _its: its, _index: index } = this;
+    let old = index++;
+    for (; index < its.length; index++) {
+      if (its[index]) {
+        return (this._index = index);
+      }
+    }
+    for (index = 0; index <= old; index++) {
+      if (its[index]) {
+        return (this._index = index);
+      }
+    }
+    return -1;
+  }
+}
+
+/**
+ * @param {AsyncIterable<T>[]} iterables
+ * @return {AsyncIterable<T>}
+ * @template T
+ */
+export async function* chain(iterables) {
+  for (const it of iterables) {
+    yield* it;
+  }
+}
+
+/**
+ * @param {AsyncIterable<T>} iterable
+ * @param {(v: T) => R|Promise<R>} fn
  * @return {AsyncIterable<R>}
  * @template T
  * @template R
  */
-export function map(iterator, fn) {
-  return new AsyncIt(iterator, fn);
+export function map(iterable, fn) {
+  return new AsyncIt(iterable, fn);
 }
 
 /**
- * @param {AsyncIterable<T>} iterator
- * @param {number} concurrency
- * @return {Promise<T[]>}
+ * @param {AsyncIterable<T>[]} iterables
+ * @return {AsyncIterable<T>}
  * @template T
  */
-export function toArray(iterator, concurrency) {
-  return new Promise((resolve, reject) => {
-    const it = iterator[Symbol.asyncIterator]();
-    /** @type {T[]} */
-    const values = [];
-    let i = 0;
+export function interleave(iterables) {
+  return new InterleavedIt(iterables);
+}
 
-    while (i < concurrency) next();
+/**
+ * @param {AsyncIterable<T>} iterable
+ * @param {number} concurrency
+ * @return {Promise<void>}
+ * @template T
+ */
+export function forEach(iterable, concurrency) {
+  return new Promise((resolve, reject) => {
+    const it = iterable[Symbol.asyncIterator]();
+    let done = false;
+    for (let c = 0; c < concurrency; c++) next();
 
     async function next() {
-      const index = i++;
+      if (done) return;
       try {
         const result = await it.next();
+
+        if (done) return;
         if (result.done) {
-          resolve(values);
+          done = true;
+          resolve();
         } else {
-          values[index] = result.value;
           next();
         }
       } catch (e) {
+        done = true;
         reject(e);
       }
     }

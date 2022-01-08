@@ -31,13 +31,20 @@ export interface CachedModuleRecord {
   abort: AbortController;
 }
 
-export interface ModuleRecord {
+export interface FileData {
   file: string;
+  cwd: string;
+  src: string;
+  dest: string;
+}
+
+export interface ModuleRecord {
+  data: FileData;
   mod: SourceTextModule;
 }
 
 export interface RenderRecord {
-  file: string;
+  data: FileData;
   render: string;
 }
 

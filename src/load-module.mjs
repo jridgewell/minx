@@ -42,7 +42,7 @@ function invalidate(identifier, depChange) {
   if (depChange) console.log(`\bpurging importer "${identifier}"`);
   else console.log(`detected change in "${identifier}"`);
 
-  const {abort, importers} = cached;
+  const { abort, importers } = cached;
   moduleCache.delete(identifier);
   abort.abort();
   for (const importer of importers) invalidate(importer, true);
@@ -73,10 +73,9 @@ function load(specifier, importer) {
   const importers = new Set([identifier]);
   const abort = new AbortController();
 
-  moduleCache.set(file, { mod, importers, abort, });
+  moduleCache.set(file, { mod, importers, abort });
 
   if (_hotReload) watchForChanges(mod, abort);
-
 
   return mod;
 }
