@@ -48,14 +48,18 @@ function handler(inDir, glob) {
       return next();
     }
 
-    const match = await lookupFile(pathname, inDir, glob);
-    if (!match) return next();
+    try {
+      const match = await lookupFile(pathname, inDir, glob);
+      if (!match) return next();
 
-    console.log(`serving "${match}"`);
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    const mod = await loadModule(match, inDir);
-    const output = await mod.namespace.default();
-    res.end(render(output, false));
+      console.log(`serving "${match}"`);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      const mod = await loadModule(match, inDir);
+      const output = await mod.namespace.default();
+      res.end(render(output, false));
+    } catch (e) {
+      next(e);
+    }
   };
 }
 
