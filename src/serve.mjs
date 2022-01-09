@@ -38,7 +38,7 @@ function handler(inDir, glob) {
   return async (req, res, next) => {
     let pathname = normalizePathname(req.url);
 
-    if (pathname.endsWith('/')) {
+    if (!pathname || pathname.endsWith('/')) {
       pathname += 'index';
     } else if (!extname(pathname)) {
       pathname += '/index';
