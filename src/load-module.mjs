@@ -1,6 +1,7 @@
 import vm from 'vm';
 import { join } from 'path';
 import { watch } from 'fs/promises';
+import { URL } from 'url';
 
 import * as React from 'preact/compat';
 
@@ -119,6 +120,7 @@ function load(specifier, importer) {
     context,
     identifier: file,
     importModuleDynamically,
+    initializeImportMeta,
   });
   moduleCache.set(file, mod);
 
@@ -130,6 +132,14 @@ function load(specifier, importer) {
   }
 
   return mod;
+}
+
+/**
+ * @param {{[key: string]: string}} meta
+ * @param {SourceTextModule} mod
+ */
+function initializeImportMeta(meta, mod) {
+  meta.url = new URL(join(process.cwd(), mod.identifier), 'file://').href;
 }
 
 /**

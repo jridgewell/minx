@@ -36,7 +36,7 @@ async function lookupFile(file, inDir, glob) {
  * @return {string}
  */
 function normalizePathname(url) {
-  const u = new URL(/** @type {string} */ (url), 'localhost://');
+  const u = new URL(/** @type {string} */ (url), 'file://');
   return u.pathname.slice(1);
 }
 
