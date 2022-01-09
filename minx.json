@@ -1,6 +1,6 @@
 {
   "in": "website",
   "out": "docs",
-  "public": ["public"],
+  "public": ["**/*.css"],
   "pretty": "  "
 }

@@ -82,6 +82,25 @@ function handler(inDir, glob, pretty) {
 }
 
 /**
+ * Serves files that match the public globs, using express's static server to
+ * do the heavy lifting.
+ *
+ * @param {string} inDir
+ * @param {string | string[]} glob
+ * @return {RequestHandler}
+ */
+function publicHandler(inDir, glob) {
+  const handler = express.static(inDir);
+  return async (req, res, next) => {
+    const pathname = normalizePathname(req.url);
+    if (await lookupFile(pathname, inDir, glob)) {
+      return handler(req, res, next);
+    }
+    next();
+  };
+}
+
+/**
  * @param {string} port
  */
 function listIp4Addresses(port) {
@@ -103,7 +122,7 @@ function listIp4Addresses(port) {
  *   port: string,
  *   glob: string | string[],
  *   pretty: boolean | string,
- *   public?: string[]
+ *   public?: string | string[]
  * }} options
  */
 export async function serve({ in: inDir, port, glob, public: pubs, pretty }) {
@@ -111,9 +130,7 @@ export async function serve({ in: inDir, port, glob, public: pubs, pretty }) {
 
   const app = express();
   app.use(handler(inDir, glob, pretty));
-  if (pubs) {
-    for (const pub of pubs) app.use(express.static(pub));
-  }
+  if (pubs) app.use(publicHandler(inDir, pubs));
   app.listen(port);
 
   listIp4Addresses(port);

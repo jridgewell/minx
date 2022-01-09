@@ -60,25 +60,18 @@ function writeRenders() {
 }
 
 /**
- * @param {string[]} cwds
+ * @param {string | string[]} glob
+ * @param {string} cwd
  * @param {string} outDir
  * @return {AsyncIterable<void>}
  */
-function copyAllPublicFiles(cwds, outDir) {
-  // We allow copying multiple public directories, and each directory will
-  // produce its own file stream. We need to interleave it in a way that we
-  // remember the cwd used to find it.
-  const streams = cwds.map((cwd) => {
-    const files = globStream('**', { cwd });
-    return map(files, (file) => ({ file, cwd }));
-  });
-
-  const copies = map(interleave(streams), ({ file, cwd }) => {
+function copyAllPublicFiles(glob, cwd, outDir) {
+  const files = globStream(glob, { cwd });
+  return map(files, (file) => {
     const src = join(cwd, file);
     const dest = join(outDir, file);
     return copyFile(src, dest);
   });
-  return copies;
 }
 
 /**
@@ -87,7 +80,7 @@ function copyAllPublicFiles(cwds, outDir) {
  *   out: string,
  *   glob: string | string[],
  *   pretty: boolean | string,
- *   public?: string[]
+ *   public?: string | string[]
  * }} options
  */
 export async function build({
@@ -103,6 +96,6 @@ export async function build({
   const renders = map(modules, renderModules(pretty));
   const rendering = map(renders, writeRenders());
 
-  const copying = copyAllPublicFiles(pubs || [], outDir);
+  const copying = copyAllPublicFiles(pubs || '', inDir, outDir);
   await forEach(interleave([rendering, copying]), 100);
 }

@@ -26,7 +26,10 @@ buildCommand.option(
   'glob patterns to search for files to transform',
   '**/*.{js,mjs}',
 );
-buildCommand.option('--public <directory...>', 'directories to copy over');
+buildCommand.option(
+  '--public <pattern...>',
+  'glob patterns to find files to also copy over',
+);
 buildCommand.option('--pretty [whitespace]', 'pretty print the resulting html');
 buildCommand.action(mergeConfig(buildCommand, build));
 
@@ -39,7 +42,10 @@ serveCommand.option(
   'glob patterns to search for files to transform',
   '**/*.{js,mjs}',
 );
-serveCommand.option('--public <directory...>', 'directories to copy over');
+serveCommand.option(
+  '--public <pattern...>',
+  'glob patterns to find files to also serve',
+);
 serveCommand.option('--pretty [whitespace]', 'pretty print the resulting html');
 serveCommand.action(mergeConfig(serveCommand, serve));
 
