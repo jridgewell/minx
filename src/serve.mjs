@@ -4,10 +4,9 @@ import { extname } from 'path';
 
 import express from 'express';
 
-import { globStream } from './glob-stream.mjs';
 import { loadModule, enableHotReload } from './load-module.mjs';
 import { render } from './react-dom.mjs';
-import { replaceExt } from './disk.mjs';
+import { globStream, replaceExt } from './disk.mjs';
 
 /** @type {import('express').RequestHandler} */
 let RequestHandler;

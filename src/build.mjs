@@ -1,10 +1,9 @@
 import { join } from 'path';
 
-import { globStream } from './glob-stream.mjs';
 import { render } from './react-dom.mjs';
 import { loadModule } from './load-module.mjs';
 import { forEach, interleave, map } from './async-iterable-concurrent.mjs';
-import { writeFile, copyFile, replaceExt } from './disk.mjs';
+import { globStream, writeFile, copyFile, replaceExt } from './disk.mjs';
 
 /** @type {import('./types').FileData} */
 let FileData;
