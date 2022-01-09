@@ -1,6 +1,6 @@
 {
   "name": "@jridgewell/minx",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "A completely static site generator powered by JS+JSX",
   "type": "module",
   "bin": {
