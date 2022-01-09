@@ -7,12 +7,10 @@ import * as React from 'preact/compat';
 import { transformSync } from './esbuild.mjs';
 import { resolve } from './disk.mjs';
 
-/** @type {import('./types').CachedModuleRecord} */
-let CachedModuleRecord;
 /** @type {import('./types').SourceTextModule} */
 let SourceTextModule;
-/** @type {import('./types').Importer} */
-let Importer;
+/** @type {import('./types').ReloadRecord} */
+let ReloadRecord;
 
 /**
  * The global context object provided for all modules that we load.
@@ -23,7 +21,7 @@ const context = vm.createContext({ React, console });
  * Caches the module instances, so they may be reused if they are imported by
  * multiple parent modules.
  *
- * @type {Map<string, CachedModuleRecord>}
+ * @type {Map<string, SourceTextModule>}
  */
 const moduleCache = new Map();
 
@@ -32,7 +30,7 @@ const moduleCache = new Map();
  * inDir provided via option parsing. This is used as the root of the module
  * graph.
  *
- * @type {Importer}
+ * @type {SourceTextModule}
  */
 let root;
 
@@ -44,42 +42,56 @@ let root;
 let hotReloadEnabled = false;
 
 /**
+ * Holds the data needed to invalidate a module to be reloaded.
+ *
+ * @type {WeakMap<SourceTextModule, ReloadRecord>}
+ */
+const reloadCache = new WeakMap();
+
+/**
  * Watches the module's file for changes so it can be removed from cache on
  * change.
  *
  * @param {SourceTextModule} mod
- * @param {AbortController} abort
+ * @return {AbortController}
  */
-async function watchForChanges(mod, abort) {
+function watchForChanges(mod) {
   const { identifier } = mod;
+  const abort = new AbortController();
+
   const watcher = watch(identifier, {
     persistent: false,
     signal: abort.signal,
   });
 
-  try {
-    for await (const _ of watcher) break;
-    invalidate(identifier);
-  } catch {}
+  (async () => {
+    try {
+      for await (const _ of watcher) break;
+      invalidate(mod);
+    } catch {}
+  })();
+
+  return abort;
 }
 
 /**
  * Invalidates a module and every module that imported it, removing it from
  * cache so it may be reloaded on next request.
  *
- * @param {string} identifier
+ * @param {SourceTextModule} mod
  */
-function invalidate(identifier) {
-  const cached = moduleCache.get(identifier);
+function invalidate(mod) {
+  const cached = reloadCache.get(mod);
   // The module may already have been invalidated if there was another path to
   // it in the module graph.
   if (!cached) return;
 
   const { abort, importers } = cached;
-  moduleCache.delete(identifier);
+  moduleCache.delete(mod.identifier);
+  reloadCache.delete(mod);
   abort.abort();
 
-  for (const importer of importers) invalidate(importer.identifier);
+  for (const importer of importers) invalidate(importer);
 }
 
 /**
@@ -87,15 +99,18 @@ function invalidate(identifier) {
  * in the module cache.
  *
  * @param {string} specifier
- * @param {Importer} importer
+ * @param {SourceTextModule} importer
  * @return {SourceTextModule}
  */
 function load(specifier, importer) {
   const file = resolve(importer.identifier, specifier);
   let cached = moduleCache.get(file);
   if (cached) {
-    if (hotReloadEnabled) cached.importers.add(importer);
-    return cached.mod;
+    const reload = reloadCache.get(cached);
+    if (reload) {
+      reload.importers.add(/** @type {SourceTextModule} */ (importer));
+    }
+    return cached;
   }
 
   console.log('\t', `compiling "${file}"`);
@@ -105,14 +120,13 @@ function load(specifier, importer) {
     identifier: file,
     importModuleDynamically,
   });
-  const importers = new Set();
-  const abort = new AbortController();
-
-  moduleCache.set(file, { mod, importers, abort });
+  moduleCache.set(file, mod);
 
   if (hotReloadEnabled) {
-    importers.add(importer);
-    watchForChanges(mod, abort);
+    reloadCache.set(mod, {
+      abort: watchForChanges(mod),
+      importers: new Set([/** @type {SourceTextModule} */ (importer)]),
+    });
   }
 
   return mod;
@@ -122,20 +136,19 @@ function load(specifier, importer) {
  * Loads, links, and evaluates a module so that it may be imported.
  *
  * @param {string} specifier
- * @param {Importer} importer
+ * @param {SourceTextModule} importer
  * @return {Promise<SourceTextModule>}
  */
 async function importModuleDynamically(specifier, importer) {
+  const mod = load(specifier, importer);
   try {
-    const mod = load(specifier, importer);
     if (mod.status === 'unlinked') await mod.link(load);
     if (mod.status === 'linked') await mod.evaluate();
-    return mod;
   } catch (e) {
-    const file = resolve(importer.identifier, specifier);
-    invalidate(file);
+    invalidate(mod);
     throw e;
   }
+  return mod;
 }
 
 export function enableHotReload() {
@@ -150,6 +163,9 @@ export function enableHotReload() {
  * @return {Promise<SourceTextModule>}
  */
 export function loadModule(specifier, cwd) {
-  root ||= { identifier: join(cwd, '[minx]') };
+  if (!root) {
+    const identifier = join(cwd, '[minx]');
+    root = /** @type {SourceTextModule} */ ({ identifier });
+  }
   return importModuleDynamically(specifier, root);
 }

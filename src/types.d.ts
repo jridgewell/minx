@@ -21,13 +21,8 @@ export class SourceTextModule {
   };
 }
 
-export interface Importer {
-  identifier: string;
-}
-
-export interface CachedModuleRecord {
-  mod: SourceTextModule;
-  importers: Set<Importer>;
+export interface ReloadRecord {
+  importers: Set<SourceTextModule>;
   abort: AbortController;
 }
 
