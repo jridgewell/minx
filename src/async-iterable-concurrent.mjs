@@ -1,4 +1,17 @@
 /**
+ * @fileoverview This provides several primitives to create and control async
+ * iterables.
+ *
+ * Why not use a simple async generator function? Because they queue, so that
+ * the next result has to wait until all previous results have resolved. This
+ * is commonly called back-pressure, because the consumer wants values that the
+ * producer can't generate yet.
+ */
+
+/**
+ * MapIt maps the output of the source iterable, generating a new iterable of
+ * the mapped outputs.
+ *
  * @template T
  * @template R
  */
@@ -10,6 +23,7 @@ class MapIt {
   constructor(iterable, fn) {
     this._it = iterable[Symbol.asyncIterator]();
     this._fn = fn;
+    this._done = false;
   }
 
   [Symbol.asyncIterator]() {
@@ -20,8 +34,13 @@ class MapIt {
    * @return {Promise<IteratorResult<R>>}
    */
   async next() {
+    if (this._done) return { value: undefined, done: true };
     const next = await this._it.next();
-    if (next.done) return { value: undefined, done: true };
+
+    if (next.done) {
+      this._done = true;
+      return { value: undefined, done: true };
+    }
 
     const value = await this._fn(next.value);
     return { value, done: false };
@@ -29,6 +48,10 @@ class MapIt {
 }
 
 /**
+ * InterleavedIt takes several async iterables, and interleaves the results so
+ * that subsequent iterators can be called before the first iterator is fully
+ * consumed.
+ *
  * @template T
  */
 class InterleavedIt {
@@ -85,6 +108,8 @@ class InterleavedIt {
 }
 
 /**
+ * Maps an async iterable into a new async iterable.
+ *
  * @param {AsyncIterable<T>} iterable
  * @param {(v: T) => R|Promise<R>} fn
  * @return {AsyncIterable<R>}
@@ -96,6 +121,8 @@ export function map(iterable, fn) {
 }
 
 /**
+ * Interlaves multiple async iterables together.
+ *
  * @param {AsyncIterable<T>[]} iterables
  * @return {AsyncIterable<T>}
  * @template T
@@ -105,6 +132,13 @@ export function interleave(iterables) {
 }
 
 /**
+ * Consumes an async iterable with a set amount of concurrency. This is only
+ * useful when we're consuming from an iterable that doesn't have backpressure,
+ * or when we can consume from an interleaved iterable.
+ *
+ * For instance, when using a MapIt that has a slow map, we can still achieve
+ * concurrent reads as long as the source iterable is faster than the map.
+ *
  * @param {AsyncIterable<T>} iterable
  * @param {number} concurrency
  * @return {Promise<void>}

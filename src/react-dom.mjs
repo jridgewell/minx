@@ -1,7 +1,10 @@
 import renderToString from 'preact-render-to-string';
 
+/** @type {import('./types').VNode} */
+let VNode;
+
 /**
- * @param {import('./types').VNode} jsx
+ * @param {VNode} jsx
  * @param {boolean | string} pretty
  * @return {string}
  */

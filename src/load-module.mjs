@@ -1,12 +1,11 @@
 import vm from 'vm';
-import { join, dirname } from 'path';
+import { join } from 'path';
 import { watch } from 'fs/promises';
 
 import * as React from 'preact/compat';
 
 import { transformSync } from './esbuild.mjs';
-
-const context = vm.createContext({ React, console });
+import { resolve } from './disk.mjs';
 
 /** @type {import('./types').CachedModuleRecord} */
 let CachedModuleRecord;
@@ -16,16 +15,38 @@ let SourceTextModule;
 let Importer;
 
 /**
+ * The global context object provided for all modules that we load.
+ */
+const context = vm.createContext({ React, console });
+
+/**
+ * Caches the module instances, so they may be reused if they are imported by
+ * multiple parent modules.
+ *
  * @type {Map<string, CachedModuleRecord>}
  */
 const moduleCache = new Map();
 
-/** @type {Importer} */
+/**
+ * We delay creating the root importer, because it needs to be relative to the
+ * inDir provided via option parsing. This is used as the root of the module
+ * graph.
+ *
+ * @type {Importer}
+ */
 let root;
 
-let _hotReload = false;
+/**
+ * If set, we'll install a file watcher to listen for changes to modules. Once
+ * changed, we'll invalidate the module graph up to the root so it may be
+ * reloaded on next request.
+ */
+let hotReloadEnabled = false;
 
 /**
+ * Watches the module's file for changes so it can be removed from cache on
+ * change.
+ *
  * @param {SourceTextModule} mod
  * @param {AbortController} abort
  */
@@ -37,15 +58,23 @@ async function watchForChanges(mod, abort) {
   });
 
   try {
-    for await (const _ of watcher) invalidate(identifier);
+    for await (const _ of watcher) {
+      invalidate(identifier);
+      break;
+    }
   } catch {}
 }
 
 /**
+ * Invalidates a module and every module that imported it, removing it from
+ * cache so it may be reloaded on next request.
+ *
  * @param {string} identifier
  */
 function invalidate(identifier) {
   const cached = moduleCache.get(identifier);
+  // The module may already have been invalidated if there was another path to
+  // it in the module graph.
   if (!cached) return;
 
   const { abort, importers } = cached;
@@ -56,25 +85,18 @@ function invalidate(identifier) {
 }
 
 /**
- * @param {string} specifier
- * @param {Importer} importer
- * @return {string}
- */
-function resolve(specifier, importer) {
-  const { identifier } = importer;
-  return join(dirname(identifier), specifier);
-}
-
-/**
+ * Loads the specified module (relative to the importing module) and stores it
+ * in the module cache.
+ *
  * @param {string} specifier
  * @param {Importer} importer
  * @return {SourceTextModule}
  */
 function load(specifier, importer) {
-  const file = resolve(specifier, importer);
+  const file = resolve(importer.identifier, specifier);
   let cached = moduleCache.get(file);
   if (cached) {
-    if (_hotReload) cached.importers.add(importer);
+    if (hotReloadEnabled) cached.importers.add(importer);
     return cached.mod;
   }
 
@@ -85,17 +107,22 @@ function load(specifier, importer) {
     identifier: file,
     importModuleDynamically,
   });
-  const importers = new Set([importer]);
+  const importers = new Set();
   const abort = new AbortController();
 
   moduleCache.set(file, { mod, importers, abort });
 
-  if (_hotReload) watchForChanges(mod, abort);
+  if (hotReloadEnabled) {
+    importers.add(importer);
+    watchForChanges(mod, abort);
+  }
 
   return mod;
 }
 
 /**
+ * Loads, links, and evaluates a module so that it may be imported.
+ *
  * @param {string} specifier
  * @param {Importer} importer
  * @return {Promise<SourceTextModule>}
@@ -107,17 +134,19 @@ async function importModuleDynamically(specifier, importer) {
     if (mod.status === 'linked') await mod.evaluate();
     return mod;
   } catch (e) {
-    const file = resolve(specifier, importer);
+    const file = resolve(importer.identifier, specifier);
     invalidate(file);
     throw e;
   }
 }
 
-export function hotReload() {
-  _hotReload = true;
+export function enableHotReload() {
+  hotReloadEnabled = true;
 }
 
 /**
+ * Loads the module from the root of our synthetic module graph.
+ *
  * @param {string} specifier
  * @param {string} cwd
  * @return {Promise<SourceTextModule>}

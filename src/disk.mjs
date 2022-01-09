@@ -1,16 +1,48 @@
-import { mkdir } from 'fs/promises';
-import { dirname, extname } from 'path';
+import {
+  mkdir,
+  writeFile as _writeFile,
+  copyFile as _copyFile,
+} from 'fs/promises';
+import { dirname, extname, join } from 'path';
+
+/**
+ * Writes the contents to dest, ensuring the destination file's directory
+ * exists before doing so.
+ *
+ * @param {string} dest
+ * @param {string} contents
+ * @return {Promise<void>}
+ */
+export async function writeFile(dest, contents) {
+  await ensureDir(dest);
+  return _writeFile(dest, contents);
+}
+
+/**
+ * Copies the src to dest, ensuring the destination file's directory exists
+ * before doing so.
+ *
+ * @param {string} src
+ * @param {string} dest
+ * @return {Promise<void>}
+ */
+export async function copyFile(src, dest) {
+  await ensureDir(dest);
+  return _copyFile(src, dest);
+}
 
 /**
  * @param {string} file
  * @return {Promise<unknown>}
  */
-export function ensureDir(file) {
+function ensureDir(file) {
   const dirpath = dirname(file);
   return mkdir(dirpath, { recursive: true });
 }
 
 /**
+ * Replaces the file extension of the file.
+ *
  * @param {string} file
  * @param {string} ext
  * @return {string}
@@ -18,4 +50,15 @@ export function ensureDir(file) {
 export function replaceExt(file, ext) {
   const e = extname(file);
   return file.slice(0, -e.length) + ext;
+}
+
+/**
+ * Resolves the full path of a file relative to an importing file's directory.
+ *
+ * @param {string} importer
+ * @param {string} specifier
+ * @return {string}
+ */
+export function resolve(importer, specifier) {
+  return join(dirname(importer), specifier);
 }

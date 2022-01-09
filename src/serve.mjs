@@ -5,11 +5,16 @@ import { extname } from 'path';
 import express from 'express';
 import fg from 'fast-glob';
 
-import { loadModule, hotReload } from './load-module.mjs';
+import { loadModule, enableHotReload } from './load-module.mjs';
 import { render } from './react-dom.mjs';
 import { replaceExt } from './disk.mjs';
 
+/** @type {import('express').RequestHandler} */
+let RequestHandler;
+
 /**
+ * Determines if a file exists with any extension that is matchable by the glob.
+ *
  * @param {string} file
  * @param {string} inDir
  * @param {string | string[]} glob
@@ -21,6 +26,10 @@ async function lookupFile(file, inDir, glob) {
 }
 
 /**
+ * Extracts just the pathname (removing queryParams and any encoding
+ * weirdness), and removes the leading slash so the file can be looked up
+ * relative to our cwd.
+ *
  * @param {string} url
  * @return {string}
  */
@@ -30,10 +39,15 @@ function normalizePathname(url) {
 }
 
 /**
+ * Handles several types of requsets, allowing any EXT that matches our glob:
+ * 1. Explicit file extension `foo/*.html`, serving `foo/*.EXT`
+ * 2. Missing file extension `foo`, serving `foo/index.EXT`
+ * 3. Trailing slash `foo/`, in which we look up `foo/index.EXT`
+ *
  * @param {string} inDir
  * @param {string | string[]} glob
  * @param {boolean | string} pretty
- * @return {import('express').RequestHandler}
+ * @return {RequestHandler}
  */
 function handler(inDir, glob, pretty) {
   return async (req, res, next) => {
@@ -67,7 +81,7 @@ function handler(inDir, glob, pretty) {
 /**
  * @param {string} port
  */
-function listAddresses(port) {
+function listIp4Addresses(port) {
   console.log('Listening on:');
   for (const device of Object.values(networkInterfaces())) {
     if (!device) continue;
@@ -90,7 +104,7 @@ function listAddresses(port) {
  * }} options
  */
 export async function serve({ in: inDir, port, glob, public: pubs, pretty }) {
-  hotReload();
+  enableHotReload();
 
   const app = express();
   app.use(handler(inDir, glob, pretty));
@@ -99,5 +113,5 @@ export async function serve({ in: inDir, port, glob, public: pubs, pretty }) {
   }
   app.listen(port);
 
-  listAddresses(port);
+  listIp4Addresses(port);
 }

@@ -1,4 +1,3 @@
-import { writeFile, copyFile } from 'fs/promises';
 import { join } from 'path';
 
 import fg from 'fast-glob';
@@ -6,7 +5,7 @@ import fg from 'fast-glob';
 import { render } from './react-dom.mjs';
 import { loadModule } from './load-module.mjs';
 import { forEach, interleave, map } from './async-iterable-concurrent.mjs';
-import { ensureDir, replaceExt } from './disk.mjs';
+import { writeFile, copyFile, replaceExt } from './disk.mjs';
 
 /** @type {import('./types').FileData} */
 let FileData;
@@ -16,6 +15,8 @@ let ModuleRecord;
 let RenderRecord;
 
 /**
+ * For some reason TS won't allow using a ReadableStream as an AsyncIterable.
+ *
  * @param {Parameters<fg>[0]} glob
  * @param {Parameters<fg>[1]} opts
  */
@@ -24,23 +25,23 @@ function streamGlob(glob, opts) {
 }
 
 /**
- * @param {string} inDir
+ * @param {string} cwd
  * @param {string} outDir
  * @return {(data: string) => FileData}
  */
-function fileData(inDir, outDir) {
+function fileData(cwd, outDir) {
   return (file) => {
-    const src = join(inDir, file);
+    const src = join(cwd, file);
     const dest = replaceExt(join(outDir, file), '.html');
-    console.log(`built ${src} -> ${dest}`);
-    return { file, cwd: inDir, src, dest };
+    console.log(`building ${src} -> ${dest}`);
+    return { file, cwd, src, dest };
   };
 }
 
 /**
  * @return {(data: FileData) => Promise<ModuleRecord>}
  */
-function importFiles() {
+function loadModules() {
   return async (data) => {
     return {
       data,
@@ -66,11 +67,7 @@ function renderModules(pretty) {
  * @return {(render: RenderRecord) => Promise<void>}
  */
 function writeRenders() {
-  return async ({ render, data }) => {
-    const { dest } = data;
-    await ensureDir(dest);
-    return writeFile(dest, render);
-  };
+  return ({ render, data }) => writeFile(data.dest, render);
 }
 
 /**
@@ -79,31 +76,20 @@ function writeRenders() {
  * @return {AsyncIterable<void>}
  */
 function copyAllPublicFiles(cwds, outDir) {
+  // We allow copying multiple public directories, and each directory will
+  // produce its own file stream. We need to interleave it in a way that we
+  // remember the cwd used to find it.
   const streams = cwds.map((cwd) => {
     const files = streamGlob('**', { cwd });
-    return map(files, (file) => {
-      return { file, cwd };
-    });
+    return map(files, (file) => ({ file, cwd }));
   });
 
-  const files = interleave(streams);
-  const copies = map(files, ({ file, cwd }) => {
-    return copyPublicFile(file, cwd, outDir);
+  const copies = map(interleave(streams), ({ file, cwd }) => {
+    const src = join(cwd, file);
+    const dest = join(outDir, file);
+    return copyFile(src, dest);
   });
   return copies;
-}
-
-/**
- * @param {string} file
- * @param {string} cwd
- * @param {string} outDir
- * @return {Promise<void>}
- */
-async function copyPublicFile(file, cwd, outDir) {
-  const src = join(cwd, file);
-  const dest = join(outDir, file);
-  await ensureDir(dest);
-  return copyFile(src, dest);
 }
 
 /**
@@ -124,7 +110,7 @@ export async function build({
 }) {
   const stream = streamGlob(glob, { cwd: inDir });
   const files = map(stream, fileData(inDir, outDir));
-  const modules = map(files, importFiles());
+  const modules = map(files, loadModules());
   const renders = map(modules, renderModules(pretty));
   const rendering = map(renders, writeRenders());
 

@@ -57,7 +57,13 @@ function readFileJson(file) {
 }
 
 /**
- * @param {import('commander').Command} cmd
+ * Extracts the config option, and if present, merges the the config's JSON
+ * into the options. Precedence is given to
+ * 1. CLI options
+ * 2. Config options
+ * 3. Default options
+ *
+ * @param {Command} cmd
  * @param {(opts: T)=>R} fn
  * @return {(opts: any) => R}
  * @template T
