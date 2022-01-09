@@ -58,10 +58,8 @@ async function watchForChanges(mod, abort) {
   });
 
   try {
-    for await (const _ of watcher) {
-      invalidate(identifier);
-      break;
-    }
+    for await (const _ of watcher) break;
+    invalidate(identifier);
   } catch {}
 }
 
