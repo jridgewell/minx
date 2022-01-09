@@ -37,29 +37,32 @@ async function watchForChanges(mod, abort) {
   });
 
   try {
-    for await (const _ of watcher) {
-      console.log(performance.now(), _);
-      invalidate(identifier, true);
-    }
+    for await (const _ of watcher) invalidate(identifier);
   } catch {}
 }
 
 /**
  * @param {string} identifier
- * @param {boolean} modified
  */
-function invalidate(identifier, modified) {
+function invalidate(identifier) {
   const cached = moduleCache.get(identifier);
   if (!cached) return;
-
-  if (modified) console.log(`detected change in "${identifier}"`);
-  else console.log(`\bpurging importer "${identifier}"`);
 
   const { abort, importers } = cached;
   moduleCache.delete(identifier);
   abort.abort();
 
-  for (const importer of importers) invalidate(importer.identifier, false);
+  for (const importer of importers) invalidate(importer.identifier);
+}
+
+/**
+ * @param {string} specifier
+ * @param {Importer} importer
+ * @return {string}
+ */
+function resolve(specifier, importer) {
+  const { identifier } = importer;
+  return join(dirname(identifier), specifier);
 }
 
 /**
@@ -68,9 +71,7 @@ function invalidate(identifier, modified) {
  * @return {SourceTextModule}
  */
 function load(specifier, importer) {
-  const { identifier } = importer;
-  const file = join(dirname(identifier), specifier);
-
+  const file = resolve(specifier, importer);
   let cached = moduleCache.get(file);
   if (cached) {
     if (_hotReload) cached.importers.add(importer);
@@ -100,10 +101,16 @@ function load(specifier, importer) {
  * @return {Promise<SourceTextModule>}
  */
 async function importModuleDynamically(specifier, importer) {
-  const mod = load(specifier, importer);
-  if (mod.status === 'unlinked') await mod.link(load);
-  if (mod.status === 'linked') await mod.evaluate();
-  return mod;
+  try {
+    const mod = load(specifier, importer);
+    if (mod.status === 'unlinked') await mod.link(load);
+    if (mod.status === 'linked') await mod.evaluate();
+    return mod;
+  } catch (e) {
+    const file = resolve(specifier, importer);
+    invalidate(file);
+    throw e;
+  }
 }
 
 export function hotReload() {
