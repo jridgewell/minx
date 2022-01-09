@@ -1,0 +1,6 @@
+{
+  "in": "website",
+  "out": "docs",
+  "public": ["public"],
+  "pretty": "  "
+}
