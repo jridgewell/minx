@@ -1,6 +1,5 @@
 import vm from 'vm';
-import { join, relative, dirname } from 'path';
-import { existsSync } from 'fs';
+import { join, dirname } from 'path';
 import { watch } from 'fs/promises';
 
 import * as React from 'preact/compat';
@@ -39,31 +38,17 @@ async function watchForChanges(mod, abort) {
 
   try {
     for await (const _ of watcher) {
-      /** @type {string[]} */
-      const reloads = [];
-      invalidate(identifier, true, reloads);
-      console.log(reloads);
-      reloads.forEach(reload);
+      console.log(performance.now(), _);
+      invalidate(identifier, true);
     }
   } catch {}
 }
 
 /**
  * @param {string} identifier
- */
-async function reload(identifier) {
-  await new Promise(r => setTimeout(r, 25));
-  if (!existsSync(identifier)) return;
-  const specifier = relative(dirname(root.identifier), identifier);
-  importModuleDynamically(specifier, root);
-}
-
-/**
- * @param {string} identifier
  * @param {boolean} modified
- * @param {string[]} reloads
  */
-function invalidate(identifier, modified, reloads) {
+function invalidate(identifier, modified) {
   const cached = moduleCache.get(identifier);
   if (!cached) return;
 
@@ -74,10 +59,7 @@ function invalidate(identifier, modified, reloads) {
   moduleCache.delete(identifier);
   abort.abort();
 
-  for (const importer of importers) {
-    if (root === importer) reloads.push(identifier);
-    invalidate(importer.identifier, false, reloads);
-  }
+  for (const importer of importers) invalidate(importer.identifier, false);
 }
 
 /**
@@ -95,7 +77,7 @@ function load(specifier, importer) {
     return cached.mod;
   }
 
-  console.log('\t', `compiling "${file}" from "${identifier}"`);
+  console.log('\t', `compiling "${file}"`);
   const transformed = transformSync(file);
   const mod = new /** @type {any} */ (vm).SourceTextModule(transformed, {
     context,

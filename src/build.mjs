@@ -72,7 +72,7 @@ function renderModules(pretty) {
  */
 function writeRenders() {
   return async ({ render, data }) => {
-    const {dest} = data;
+    const { dest } = data;
     await ensureDir(dest);
     return writeFile(dest, render);
   };
