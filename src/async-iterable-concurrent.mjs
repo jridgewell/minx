@@ -2,7 +2,7 @@
  * @template T
  * @template R
  */
-class AsyncIt {
+class MapIt {
   /**
    * @param {AsyncIterable<T>} iterable
    * @param {(v: T) => R|Promise<R>} fn
@@ -109,7 +109,7 @@ export async function* chain(iterables) {
  * @template R
  */
 export function map(iterable, fn) {
-  return new AsyncIt(iterable, fn);
+  return new MapIt(iterable, fn);
 }
 
 /**
