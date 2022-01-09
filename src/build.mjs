@@ -1,7 +1,6 @@
 import { join } from 'path';
 
-import fg from 'fast-glob';
-
+import { globStream } from './glob-stream.mjs';
 import { render } from './react-dom.mjs';
 import { loadModule } from './load-module.mjs';
 import { forEach, interleave, map } from './async-iterable-concurrent.mjs';
@@ -13,16 +12,6 @@ let FileData;
 let ModuleRecord;
 /** @type {import('./types').RenderRecord} */
 let RenderRecord;
-
-/**
- * For some reason TS won't allow using a ReadableStream as an AsyncIterable.
- *
- * @param {Parameters<fg>[0]} glob
- * @param {Parameters<fg>[1]} opts
- */
-function streamGlob(glob, opts) {
-  return /** @type {AsyncIterable<string>} */ (fg.stream(glob, opts));
-}
 
 /**
  * @param {string} cwd
@@ -80,7 +69,7 @@ function copyAllPublicFiles(cwds, outDir) {
   // produce its own file stream. We need to interleave it in a way that we
   // remember the cwd used to find it.
   const streams = cwds.map((cwd) => {
-    const files = streamGlob('**', { cwd });
+    const files = globStream('**', { cwd });
     return map(files, (file) => ({ file, cwd }));
   });
 
@@ -108,7 +97,7 @@ export async function build({
   pretty,
   public: pubs,
 }) {
-  const stream = streamGlob(glob, { cwd: inDir });
+  const stream = globStream(glob, { cwd: inDir });
   const files = map(stream, fileData(inDir, outDir));
   const modules = map(files, loadModules());
   const renders = map(modules, renderModules(pretty));

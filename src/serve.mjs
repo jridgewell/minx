@@ -3,8 +3,8 @@ import { networkInterfaces } from 'os';
 import { extname } from 'path';
 
 import express from 'express';
-import fg from 'fast-glob';
 
+import { globStream } from './glob-stream.mjs';
 import { loadModule, enableHotReload } from './load-module.mjs';
 import { render } from './react-dom.mjs';
 import { replaceExt } from './disk.mjs';
@@ -21,8 +21,11 @@ let RequestHandler;
  * @return {Promise<string|undefined>}
  */
 async function lookupFile(file, inDir, glob) {
-  const files = await fg(glob, { cwd: inDir });
-  return files.find((f) => f.startsWith(file));
+  const stream = globStream(glob, { cwd: inDir });
+  for await (const f of stream) {
+    if (f.startsWith(file)) return f;
+  }
+  return undefined;
 }
 
 /**
