@@ -19,31 +19,28 @@ program.version(packageConfig.version, '-v, --version');
 
 const buildCommand = program.command('build');
 buildCommand.option('-c, --config <file>', 'config file for default options');
-buildCommand.option('-i, --in <dir>', 'input directory to build', '.');
-buildCommand.option('-o, --out <dir>', 'output directory to build', 'docs');
+buildCommand.option('-i, --in <dir>', 'input directory to build', 'website');
+buildCommand.option('-o, --out <dir>', 'output directory to build', '_site');
 buildCommand.option(
-  '-g, --glob <pattern>',
-  'glob pattern to search for files to transform',
+  '-g, --glob <pattern...>',
+  'glob patterns to search for files to transform',
   '**/*.{js,mjs}',
 );
-buildCommand.option('--public <pattern...>', 'directories to copy over');
+buildCommand.option('--public <directory...>', 'directories to copy over');
 buildCommand.option('--pretty [whitespace]', 'pretty print the resulting html');
-// @ts-ignore
-buildCommand.option('--ignore <pattern...>', 'glob pattern to ignore', [
-  'node_modules',
-]);
 buildCommand.action(mergeConfig(buildCommand, build));
 
 const serveCommand = program.command('serve');
 serveCommand.option('-c, --config <file>', 'config file for default options');
-serveCommand.option('-i, --in <dir>', 'input directory to build', '.');
+serveCommand.option('-i, --in <dir>', 'input directory to build', 'website');
 serveCommand.option('--port <dir>', 'port to use', '8080');
 serveCommand.option(
-  '-g, --glob <pattern>',
-  'glob pattern to search for files to transform',
+  '-g, --glob <pattern...>',
+  'glob patterns to search for files to transform',
   '**/*.{js,mjs}',
 );
-serveCommand.option('--public <pattern...>', 'directories to copy over');
+serveCommand.option('--public <directory...>', 'directories to copy over');
+serveCommand.option('--pretty [whitespace]', 'pretty print the resulting html');
 serveCommand.action(mergeConfig(serveCommand, serve));
 
 /**

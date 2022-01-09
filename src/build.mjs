@@ -115,8 +115,7 @@ async function copyPublicFile(file, cwd, outDir) {
  * @param {{
  *   in: string,
  *   out: string,
- *   glob: string,
- *   ignore: string[],
+ *   glob: string | string[],
  *   pretty: boolean | string,
  *   public?: string[]
  * }} options
@@ -125,11 +124,10 @@ export async function build({
   in: inDir,
   out: outDir,
   glob,
-  ignore,
   pretty,
   public: pubs,
 }) {
-  const stream = streamGlob(glob, { cwd: inDir, ignore });
+  const stream = streamGlob(glob, { cwd: inDir });
   const files = map(stream, fileData(inDir, outDir));
   const modules = map(files, importFiles());
   const renders = map(modules, renderModules(pretty));

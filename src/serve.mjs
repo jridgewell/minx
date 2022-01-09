@@ -12,7 +12,7 @@ import { replaceExt } from './disk.mjs';
 /**
  * @param {string} file
  * @param {string} inDir
- * @param {string} glob
+ * @param {string | string[]} glob
  * @return {Promise<string|undefined>}
  */
 async function lookupFile(file, inDir, glob) {
@@ -31,10 +31,11 @@ function normalizePathname(url) {
 
 /**
  * @param {string} inDir
- * @param {string} glob
+ * @param {string | string[]} glob
+ * @param {boolean | string} pretty
  * @return {import('express').RequestHandler}
  */
-function handler(inDir, glob) {
+function handler(inDir, glob, pretty) {
   return async (req, res, next) => {
     let pathname = normalizePathname(req.url);
 
@@ -56,7 +57,7 @@ function handler(inDir, glob) {
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       const mod = await loadModule(match, inDir);
       const output = await mod.namespace.default();
-      res.end(render(output, false));
+      res.end(render(output, pretty));
     } catch (e) {
       next(e);
     }
@@ -83,15 +84,16 @@ function listAddresses(port) {
  * @param {{
  *   in: string,
  *   port: string,
- *   glob: string,
+ *   glob: string | string[],
+ *   pretty: boolean | string,
  *   public?: string[]
  * }} options
  */
-export async function serve({ in: inDir, port, glob, public: pubs }) {
+export async function serve({ in: inDir, port, glob, public: pubs, pretty }) {
   hotReload();
 
   const app = express();
-  app.use(handler(inDir, glob));
+  app.use(handler(inDir, glob, pretty));
   if (pubs) {
     for (const pub of pubs) app.use(express.static(pub));
   }

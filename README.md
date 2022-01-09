@@ -15,7 +15,7 @@ export default function Website() {
     <body>
       Hello World!
     </body>
-  </html>
+  </html>;
 }
 ```
 
