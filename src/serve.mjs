@@ -4,7 +4,7 @@ import { extname } from 'path';
 
 import express from 'express';
 
-import { loadModule, enableHotReload } from './load-module.mjs';
+import { loadModule, setupBootstrap, enableHotReload } from './load-module.mjs';
 import { render } from './react-dom.mjs';
 import { globStream, replaceExt } from './disk.mjs';
 
@@ -121,11 +121,20 @@ function listIp4Addresses(port) {
  *   port: string,
  *   glob: string | string[],
  *   pretty: boolean | string,
- *   public?: string | string[]
+ *   public?: string | string[],
+ *   bootstrap?: string,
  * }} options
  */
-export async function serve({ in: inDir, port, glob, public: pubs, pretty }) {
+export async function serve({
+  in: inDir,
+  port,
+  glob,
+  public: pubs,
+  pretty,
+  bootstrap,
+}) {
   enableHotReload();
+  await setupBootstrap(bootstrap);
 
   const app = express();
   app.use(handler(inDir, glob, pretty));

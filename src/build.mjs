@@ -1,7 +1,7 @@
 import { join } from 'path';
 
 import { render } from './react-dom.mjs';
-import { loadModule } from './load-module.mjs';
+import { loadModule, setupBootstrap } from './load-module.mjs';
 import { forEach, interleave, map } from './async-iterable-concurrent.mjs';
 import { globStream, writeFile, copyFile, replaceExt } from './disk.mjs';
 
@@ -79,7 +79,8 @@ function copyAllPublicFiles(glob, cwd, outDir) {
  *   out: string,
  *   glob: string | string[],
  *   pretty: boolean | string,
- *   public?: string | string[]
+ *   public?: string | string[],
+ *   bootstrap?: string,
  * }} options
  */
 export async function build({
@@ -88,7 +89,10 @@ export async function build({
   glob,
   pretty,
   public: pubs,
+  bootstrap,
 }) {
+  await setupBootstrap(bootstrap);
+
   const stream = globStream(glob, { cwd: inDir });
   const files = map(stream, fileData(inDir, outDir));
   const modules = map(files, loadModules());

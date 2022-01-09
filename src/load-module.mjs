@@ -15,8 +15,9 @@ let ReloadRecord;
 
 /**
  * The global context object provided for all modules that we load.
+ * @type {object}
  */
-const context = vm.createContext({ React, console });
+let context;
 
 /**
  * Caches the module instances, so they may be reused if they are imported by
@@ -163,6 +164,19 @@ async function importModuleDynamically(specifier, importer) {
 
 export function enableHotReload() {
   hotReloadEnabled = true;
+}
+
+/**
+ * @param {string | undefined} bootstrap
+ */
+export async function setupBootstrap(bootstrap) {
+  let namespace;
+  if (bootstrap) {
+    const specifier = join(process.cwd(), bootstrap);
+    namespace = await import(specifier);
+  }
+
+  context = vm.createContext({ React, console, ...namespace });
 }
 
 /**

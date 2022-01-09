@@ -31,6 +31,10 @@ buildCommand.option(
   'glob patterns to find files to also copy over',
 );
 buildCommand.option('--pretty [whitespace]', 'pretty print the resulting html');
+buildCommand.option(
+  '--bootstrap <file>',
+  'module that provides globals during execution, eg to load node modules.',
+);
 buildCommand.action(mergeConfig(buildCommand, build));
 
 const serveCommand = program.command('serve');
@@ -47,6 +51,10 @@ serveCommand.option(
   'glob patterns to find files to also serve',
 );
 serveCommand.option('--pretty [whitespace]', 'pretty print the resulting html');
+serveCommand.option(
+  '--bootstrap <file>',
+  'module that provides globals during execution, eg to load node modules.',
+);
 serveCommand.action(mergeConfig(serveCommand, serve));
 
 /**

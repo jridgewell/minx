@@ -1,6 +1,7 @@
 {
   "in": "website",
   "out": "docs",
-  "public": ["**/*.css"],
+  "glob": "**/index.mjs",
+  "public": "**/*.css",
   "pretty": "  "
 }
