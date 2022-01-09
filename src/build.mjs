@@ -5,12 +5,7 @@ import fg from 'fast-glob';
 
 import { render } from './react-dom.mjs';
 import { loadModule } from './load-module.mjs';
-import {
-  forEach,
-  interleave,
-  chain,
-  map,
-} from './async-iterable-concurrent.mjs';
+import { forEach, interleave, map } from './async-iterable-concurrent.mjs';
 import { ensureDir, replaceExt } from './disk.mjs';
 
 /** @type {import('./types').FileData} */
@@ -84,14 +79,14 @@ function writeRenders() {
  * @return {AsyncIterable<void>}
  */
 function copyAllPublicFiles(cwds, outDir) {
-  const files = chain(
-    cwds.map((cwd) => {
-      const files = streamGlob('**', { cwd });
-      return map(files, (file) => {
-        return { file, cwd };
-      });
-    }),
-  );
+  const streams = cwds.map((cwd) => {
+    const files = streamGlob('**', { cwd });
+    return map(files, (file) => {
+      return { file, cwd };
+    });
+  });
+
+  const files = interleave(streams);
   const copies = map(files, ({ file, cwd }) => {
     return copyPublicFile(file, cwd, outDir);
   });

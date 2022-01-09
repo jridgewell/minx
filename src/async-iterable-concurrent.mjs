@@ -36,7 +36,7 @@ class InterleavedIt {
    * @param {AsyncIterable<T>[]} iterables
    */
   constructor(iterables) {
-    /** @type {Array<AsyncIterator<T>|null>} */
+    /** @type {Array<AsyncIterator<T> | null>} */
     this._its = iterables.map((it) => it[Symbol.asyncIterator]());
     this._index = 0;
     this._done = false;
@@ -50,24 +50,22 @@ class InterleavedIt {
    * @return {Promise<IteratorResult<T>>}
    */
   async next() {
-    let i = -1;
-    try {
-      if (!this._done) i = this._nextIndex();
-      if (i === -1) {
-        this._done = true;
-        return { value: undefined, done: true };
-      }
-
-      const its = this._its;
-      const it = /** @type {AsyncIterator<T>} */ (its[i]);
-      const result = await it.next();
-      if (result.done) its[i] = null;
-
-      return this.next();
-    } catch (e) {
+    if (this._done) return { value: undefined, done: true };
+    let i = this._nextIndex();
+    if (i === -1) {
       this._done = true;
-      throw e;
+      return { value: undefined, done: true };
     }
+
+    const its = this._its;
+    const it = /** @type {AsyncIterator<T>} */ (its[i]);
+    const result = await it.next();
+
+    if (result.done) {
+      its[i] = null;
+      return this.next();
+    }
+    return result;
   }
 
   /**
@@ -77,27 +75,12 @@ class InterleavedIt {
     let { _its: its, _index: index } = this;
     let old = index++;
     for (; index < its.length; index++) {
-      if (its[index]) {
-        return (this._index = index);
-      }
+      if (its[index]) return (this._index = index);
     }
     for (index = 0; index <= old; index++) {
-      if (its[index]) {
-        return (this._index = index);
-      }
+      if (its[index]) return (this._index = index);
     }
     return -1;
-  }
-}
-
-/**
- * @param {AsyncIterable<T>[]} iterables
- * @return {AsyncIterable<T>}
- * @template T
- */
-export async function* chain(iterables) {
-  for (const it of iterables) {
-    yield* it;
   }
 }
 
