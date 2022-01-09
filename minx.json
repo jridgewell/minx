@@ -2,6 +2,8 @@
   "in": "website",
   "out": "docs",
   "glob": "**/index.mjs",
-  "public": "**/*.css",
-  "pretty": "  "
+  "public": ["style.css", "script.js"],
+  "bootstrap": "website/bootstrap.mjs",
+  "//pretty breaks <pre> rendering": "",
+  "pretty": false
 }
