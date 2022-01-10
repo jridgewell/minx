@@ -92,10 +92,14 @@ function publicHandler(inDir, glob) {
   const handler = express.static(inDir);
   return async (req, res, next) => {
     const pathname = normalizePathname(req.url);
-    if (await lookupFile(pathname, inDir, glob)) {
-      return handler(req, res, next);
+    try {
+      if (await lookupFile(pathname, inDir, glob)) {
+        return handler(req, res, next);
+      }
+      next();
+    } catch (e) {
+      next(e);
     }
-    next();
   };
 }
 
