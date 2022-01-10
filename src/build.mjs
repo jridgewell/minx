@@ -2,7 +2,7 @@ import { join } from 'path';
 
 import { render } from './react-dom.mjs';
 import { loadModule, setupBootstrap } from './load-module.mjs';
-import { forEach, interleave, map } from './async-iterable-concurrent.mjs';
+import { forEach, cap, interleave, map } from './async-iterable-concurrent.mjs';
 import { globStream, writeFile, copyFile, replaceExt } from './disk.mjs';
 
 /** @type {import('./types').FileData} */
@@ -100,5 +100,5 @@ export async function build({
   const rendering = map(renders, writeRenders());
 
   const copying = copyAllPublicFiles(pubs || '', inDir, outDir);
-  await forEach(interleave([rendering, copying]), 100);
+  await forEach(cap(interleave([rendering, copying])), 100);
 }

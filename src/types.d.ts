@@ -43,6 +43,11 @@ export interface RenderRecord {
   render: string;
 }
 
+export interface Deferred<T, E> {
+  resolve: (v: T) => void;
+  reject: (e: E) => void;
+}
+
 export type Merge<A, B> = {
   [K in keyof A]: K extends keyof B ? B[K] : A[K];
 } & B;
