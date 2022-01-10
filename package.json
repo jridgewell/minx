@@ -12,8 +12,8 @@
     "test:lint": "prettier --check src bin",
     "test:types": "tsc -p tsconfig.json",
     "test:build": "npm run build",
-    "build": "minx build -c minx.json",
-    "serve": "minx serve -c minx.json"
+    "build": "./bin/minx.mjs build -c minx.json",
+    "serve": "./bin/minx.mjs serve -c minx.json"
   },
   "repository": {
     "type": "git",
